@@ -186,7 +186,9 @@
 var SCRIPT_URL = 'https://script.google.com/a/macros/instamart.in/s/AKfycbxN-XzFPOPfl6Dnc-e22atMw0Pmx9nV9nflzSXoIDYTRG8ICDWNbdDHLRuisuzMN3V8/exec';
 // ═══════════════════════════════════════════════════════
 
-var IS_CONFIGURED = SCRIPT_URL.startsWith('https://script.google.com');
+var IS_CONFIGURED = SCRIPT_URL.indexOf('script.google.com') > -1 && SCRIPT_URL.indexOf('PASTE_') === -1;
+// NOTE: URL must be deployed as "Anyone (even anonymous)" — not "Anyone within instamart.in"
+// Correct URL format: https://script.google.com/macros/s/AKfy.../exec  (no /a/macros/domain/ part)
 
 // State
 var MEMBERS = [], TODAY_ATT = [], ABS_COUNTS = {};
@@ -706,8 +708,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   <!-- Config banner -->
   <div id="cfgBanner" class="cfg-banner">
-    <h3>⚠️ Apps Script URL Not Configured</h3>
-    <p>Open <code>index.html</code>, find <code>https://script.google.com/a/macros/instamart.in/s/AKfycbxN-XzFPOPfl6Dnc-e22atMw0Pmx9nV9nflzSXoIDYTRG8ICDWNbdDHLRuisuzMN3V8/exec</code> near the top, and replace it with your deployed Apps Script web app URL. See <code>SETUP_GUIDE.md</code> for step-by-step instructions.</p>
+    <h3>⚠️ Apps Script Access Error</h3>
+    <p>The deployment is set to <strong>"Anyone within instamart.in"</strong> — this blocks GitHub Pages from accessing it. You must redeploy with <strong>"Who has access: Anyone"</strong> (not "Anyone within instamart.in"). See the fix steps below.</p>
   </div>
 
   <div id="mainAlert" class="alert"></div>
