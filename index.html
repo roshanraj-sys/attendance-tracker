@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Attendance Tracker</title>
+<style>
+  :root {
+    --bg: #f0f2f5; --surface: #ffffff; --surface2: #f8f9fa; --border: #e2e8f0;
+    --text: #1a202c; --text2: #4a5568; --text3: #718096;
+    --primary: #4f46e5; --primary-hover: #4338ca; --primary-light: #eef2ff;
+    --success: #059669; --success-light: #d1fae5;
+    --warning: #d97706; --warning-light: #fef3c7;
+    --danger: #dc2626; --danger-light: #fee2e2;
+    --vqc: #3b82f6; --vqc-light: #dbeafe;
+    --enrich: #8b5cf6; --enrich-light: #ede9fe;
+    --radius: 12px; --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+  }
+  [data-theme="dark"] {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #162032; --border: #2d3748;
+    --text: #f1f5f9; --text2: #cbd5e1; --text3: #94a3b8;
+    --primary-light: #1e1b4b;
+    --success-light: #064e3b; --warning-light: #451a03; --danger-light: #450a0a;
+    --vqc-light: #1e3a5f; --enrich-light: #2e1065;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; transition:background 0.3s,color 0.3s; }
+
+  /* Header */
+  .header { background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; height:64px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:var(--shadow); }
+  .header-left { display:flex; align-items:center; gap:12px; }
+  .logo { width:36px; height:36px; background:var(--primary); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .app-title { font-size:17px; font-weight:700; color:var(--text); }
+  .app-sub { font-size:12px; color:var(--text3); margin-top:1px; }
+  .header-right { display:flex; align-items:center; gap:10px; }
+  .date-badge { font-size:13px; color:var(--text2); background:var(--surface2); padding:6px 12px; border-radius:20px; border:1px solid var(--border); }
+  .theme-btn { width:36px; height:36px; border:1px solid var(--border); background:var(--surface2); border-radius:8px; cursor:pointer; font-size:17px; display:flex; align-items:center; justify-content:center; color:var(--text); transition:all 0.2s; }
+  .theme-btn:hover { background:var(--primary-light); }
+
+  /* View toggle */
+  .view-toggle { display:flex; background:var(--surface2); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .view-btn { padding:6px 14px; font-size:13px; font-weight:500; cursor:pointer; border:none; background:transparent; color:var(--text2); transition:all 0.2s; }
+  .view-btn.active { background:var(--primary); color:#fff; }
+
+  /* Main layout */
+  .main { max-width:1200px; margin:0 auto; padding:24px; }
+
+  /* Config banner */
+  .config-banner { background:var(--warning-light); border:1px solid var(--warning); border-radius:var(--radius); padding:16px 20px; margin-bottom:20px; display:none; }
+  .config-banner h3 { font-size:14px; font-weight:700; color:var(--warning); margin-bottom:6px; }
+  .config-banner p { font-size:13px; color:var(--text2); line-height:1.6; }
+  .config-banner code { background:var(--surface); padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace; }
+
+  /* Cards */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); }
+  .card-title { font-size:14px; font-weight:600; color:var(--text2); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+
+  /* Stat pills */
+  .stats-row { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+  .stat-pill { flex:1; min-width:100px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; text-align:center; }
+  .stat-pill .val { font-size:24px; font-weight:800; }
+  .stat-pill .lbl { font-size:11px; color:var(--text3); margin-top:3px; text-transform:uppercase; letter-spacing:0.5px; }
+  .stat-pill.present .val { color:var(--success); }
+  .stat-pill.absent .val { color:var(--danger); }
+  .stat-pill.pending .val { color:var(--warning); }
+  .stat-pill.wfh .val { color:var(--primary); }
+
+  /* Member check-in */
+  .checkin-card { margin-bottom:20px; }
+  .form-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .form-group { display:flex; flex-direction:column; gap:6px; flex:1; min-width:160px; }
+  .form-group label { font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:0.4px; }
+  select, input { padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface2); color:var(--text); font-size:14px; outline:none; transition:border 0.2s; }
+  select:focus, input:focus { border-color:var(--primary); }
+  .mode-btns { display:flex; gap:8px; }
+  .mode-btn { flex:1; padding:10px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--surface2); color:var(--text2); font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; text-align:center; }
+  .mode-btn.active { border-color:var(--primary); background:var(--primary-light); color:var(--primary); }
+  .btn { padding:10px 20px; border:none; border-radius:var(--radius-sm); font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:8px; }
+  .btn-primary { background:var(--primary); color:#fff; }
+  .btn-primary:hover { background:var(--primary-hover); transform:translateY(-1px); box-shadow:var(--shadow-md); }
+  .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+  .btn-success { background:var(--success); color:#fff; }
+  .btn-success:hover { opacity:0.9; }
+  .btn-danger { background:var(--danger); color:#fff; }
+  .btn-sm { padding:6px 12px; font-size:12px; }
+  .btn-outline { background:transparent; border:1.5px solid var(--border); color:var(--text2); }
+  .btn-outline:hover { border-color:var(--primary); color:var(--primary); }
+
+  /* Quick actions */
+  .quick-actions { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+  .quick-btn { flex:1; min-width:140px; padding:12px 16px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--surface2); color:var(--text2); font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; text-align:center; }
+  .quick-btn:hover { border-color:var(--primary); color:var(--primary); background:var(--primary-light); }
+
+  /* Team list */
+  .team-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:10px; }
+  .member-card { padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface2); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .member-info { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .member-name { font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .member-team { font-size:11px; color:var(--text3); }
+  .badge { display:inline-flex; align-items:center; padding:3px 8px; border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; }
+  .badge-present { background:var(--success-light); color:var(--success); }
+  .badge-absent { background:var(--danger-light); color:var(--danger); }
+  .badge-pending { background:var(--warning-light); color:var(--warning); }
+  .badge-leave { background:var(--primary-light); color:var(--primary); }
+  .badge-vqc { background:var(--vqc-light); color:var(--vqc); }
+  .badge-enrich { background:var(--enrich-light); color:var(--enrich); }
+
+  /* Tabs */
+  .tabs { display:flex; border-bottom:2px solid var(--border); margin-bottom:20px; gap:4px; }
+  .tab { padding:10px 18px; font-size:13px; font-weight:500; cursor:pointer; border:none; background:transparent; color:var(--text3); border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.2s; border-radius:8px 8px 0 0; }
+  .tab.active { color:var(--primary); border-bottom-color:var(--primary); background:var(--primary-light); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+  .notif-dot { display:inline-block; width:8px; height:8px; background:var(--danger); border-radius:50%; margin-left:6px; vertical-align:middle; }
+
+  /* Table */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; padding:10px 12px; background:var(--surface2); border-bottom:1px solid var(--border); }
+  td { padding:12px; font-size:13px; color:var(--text); border-bottom:1px solid var(--border); }
+  tr:hover td { background:var(--surface2); }
+  tr:last-child td { border-bottom:none; }
+
+  /* Admin login */
+  .login-wrap { max-width:380px; margin:60px auto; }
+  .login-wrap .card { padding:32px; }
+  .login-wrap h2 { font-size:20px; font-weight:700; margin-bottom:6px; }
+  .login-wrap p { font-size:13px; color:var(--text3); margin-bottom:24px; }
+
+  /* Modal */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border-radius:var(--radius); padding:28px; width:100%; max-width:480px; box-shadow:var(--shadow-lg); }
+  .modal h3 { font-size:17px; font-weight:700; margin-bottom:20px; }
+  .modal .form-group { margin-bottom:16px; }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; }
+
+  /* Alert */
+  .alert { padding:12px 16px; border-radius:var(--radius-sm); font-size:13px; margin-bottom:16px; display:none; }
+  .alert-success { background:var(--success-light); color:var(--success); border:1px solid var(--success); }
+  .alert-error { background:var(--danger-light); color:var(--danger); border:1px solid var(--danger); }
+  .alert-info { background:var(--primary-light); color:var(--primary); border:1px solid var(--primary); }
+
+  /* Status indicator */
+  .checkin-status { padding:14px 18px; border-radius:var(--radius-sm); font-size:14px; font-weight:600; margin-bottom:16px; display:none; }
+  .checkin-status.present { background:var(--success-light); color:var(--success); border:1px solid var(--success); }
+  .checkin-status.absent { background:var(--danger-light); color:var(--danger); }
+
+  /* Monthly report */
+  .report-controls { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px; }
+  .report-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+  .rstat { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 16px; }
+  .rstat .rv { font-size:22px; font-weight:800; color:var(--primary); }
+  .rstat .rl { font-size:11px; color:var(--text3); margin-top:2px; text-transform:uppercase; letter-spacing:0.4px; }
+
+  /* Loader */
+  .loader { display:inline-block; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-screen { display:flex; align-items:center; justify-content:center; min-height:300px; flex-direction:column; gap:16px; color:var(--text3); }
+
+  /* Empty state */
+  .empty { text-align:center; padding:40px 20px; color:var(--text3); }
+  .empty .icon { font-size:48px; margin-bottom:12px; }
+  .empty p { font-size:14px; }
+
+  /* Request items */
+  .req-item { padding:14px 16px; border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:10px; background:var(--surface2); }
+  .req-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px; }
+  .req-title { font-size:14px; font-weight:600; }
+  .req-meta { font-size:12px; color:var(--text3); margin-top:4px; }
+  .req-actions { display:flex; gap:8px; margin-top:10px; }
+
+  /* Section heading */
+  .section-heading { font-size:16px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; }
+  .section-sub { font-size:12px; color:var(--text3); font-weight:400; margin-left:8px; }
+
+  @media (max-width:640px) {
+    .main { padding:16px; }
+    .header { padding:0 16px; }
+    .stats-row { gap:8px; }
+    .stat-pill { min-width:80px; padding:10px 12px; }
+    .stat-pill .val { font-size:20px; }
+    .form-row { flex-direction:column; }
+    .report-controls { flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, query, where, orderBy, Timestamp, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ─── PASTE YOUR FIREBASE CONFIG HERE ───────────────────────────────────────
+  const firebaseConfig = {
+    apiKey: "REPLACE_WITH_YOUR_API_KEY",
+    authDomain: "REPLACE_WITH_YOUR_AUTH_DOMAIN",
+    projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
+    storageBucket: "REPLACE_WITH_YOUR_STORAGE_BUCKET",
+    messagingSenderId: "REPLACE_WITH_YOUR_MESSAGING_SENDER_ID",
+    appId: "REPLACE_WITH_YOUR_APP_ID"
+  };
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const IS_CONFIGURED = !firebaseConfig.apiKey.startsWith("REPLACE");
+
+  const app = IS_CONFIGURED ? initializeApp(firebaseConfig) : null;
+  const db  = IS_CONFIGURED ? getFirestore(app) : null;
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const todayStr = () => new Date().toISOString().slice(0,10);
+  const nowTime  = () => new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const fmtDate  = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '';
+  const CUTOFF   = 10; // 10 AM cutoff for absent marking
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  let MEMBERS = [];        // [{name, team}]
+  let TODAY_ATT = [];      // today's attendance docs
+  let ALL_REQUESTS = [];   // all requests
+  let ADMIN_LOGGED_IN = false;
+  let SELECTED_MODE = 'WFO';
+  let lastUser = '';
+  let activeAdminTab = 'attendance';
+  let activeMemberTab = 'team';
+
+  // ── Seed default members if collection empty ─────────────────────────────
+  async function seedMembers() {
+    if (!db) return;
+    const snap = await getDocs(collection(db, 'members'));
+    if (!snap.empty) return;
+    const defaults = [
+      // VQC team
+      {name:'Ananya Singh', team:'VQC'},
+      {name:'Rahul Mehta', team:'VQC'},
+      {name:'Priya Nair', team:'VQC'},
+      {name:'Karan Sharma', team:'VQC'},
+      {name:'Sneha Pillai', team:'VQC'},
+      {name:'Arjun Reddy', team:'VQC'},
+      {name:'Divya Patel', team:'VQC'},
+      {name:'Rohan Gupta', team:'VQC'},
+      {name:'Meera Iyer', team:'VQC'},
+      {name:'Suresh Kumar', team:'VQC'},
+      // Enrichment team
+      {name:'Pooja Sharma', team:'Enrichment'},
+      {name:'Amit Verma', team:'Enrichment'},
+      {name:'Kavya Nair', team:'Enrichment'},
+      {name:'Vikram Singh', team:'Enrichment'},
+      {name:'Shruti Reddy', team:'Enrichment'},
+      {name:'Nikhil Patel', team:'Enrichment'},
+      {name:'Riya Gupta', team:'Enrichment'},
+      {name:'Aditya Kumar', team:'Enrichment'},
+      {name:'Swathi Iyer', team:'Enrichment'},
+      {name:'Deepak Mehta', team:'Enrichment'},
+    ];
+    for (const m of defaults) {
+      await setDoc(doc(collection(db,'members'), m.name.replace(/\s+/g,'_')), m);
+    }
+  }
+
+  // ── Load members ─────────────────────────────────────────────────────────
+  async function loadMembers() {
+    if (!db) return;
+    const snap = await getDocs(query(collection(db,'members'), orderBy('team'), orderBy('name')));
+    MEMBERS = snap.docs.map(d => d.data());
+    renderMemberDropdown();
+  }
+
+  function renderMemberDropdown() {
+    const sel = document.getElementById('memberSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- Select your name --</option>';
+    let lastTeam = '';
+    MEMBERS.forEach(m => {
+      if (m.team !== lastTeam) {
+        const og = document.createElement('optgroup');
+        og.label = `── ${m.team} Team ──`;
+        sel.appendChild(og);
+        lastTeam = m.team;
+      }
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = m.name;
+      sel.appendChild(o);
+    });
+  }
+
+  // ── Load today's attendance ───────────────────────────────────────────────
+  async function loadTodayAttendance() {
+    if (!db) return;
+    const q = query(collection(db,'attendance'), where('date','==',todayStr()));
+    const snap = await getDocs(q);
+    TODAY_ATT = snap.docs.map(d => ({id:d.id,...d.data()}));
+    renderStats();
+    renderTeamList();
+    if (lastUser) updateCheckinStatus(lastUser);
+  }
+
+  function renderStats() {
+    const present = TODAY_ATT.filter(r=>r.status==='Present').length;
+    const absent  = TODAY_ATT.filter(r=>r.status==='Absent').length;
+    const leaves  = TODAY_ATT.filter(r=>r.status==='On Leave').length;
+    const wfh     = TODAY_ATT.filter(r=>r.mode==='WFH').length;
+    const total   = MEMBERS.length;
+    const pending = total - present - absent - leaves;
+    document.getElementById('statPresent').textContent = present;
+    document.getElementById('statAbsent').textContent  = absent;
+    document.getElementById('statPending').textContent = Math.max(0,pending);
+    document.getElementById('statWFH').textContent     = wfh;
+  }
+
+  function renderTeamList() {
+    const container = document.getElementById('teamList');
+    if (!container) return;
+    container.innerHTML = '';
+    MEMBERS.forEach(m => {
+      const rec = TODAY_ATT.find(r => r.name === m.name);
+      let statusClass = 'badge-pending', statusText = 'Pending';
+      if (rec) {
+        if (rec.status === 'Present') { statusClass='badge-present'; statusText=rec.mode||'Present'; }
+        else if (rec.status === 'Absent') { statusClass='badge-absent'; statusText='Absent'; }
+        else if (rec.status === 'On Leave') { statusClass='badge-leave'; statusText='On Leave'; }
+      }
+      const teamClass = m.team === 'VQC' ? 'badge-vqc' : 'badge-enrich';
+      const card = document.createElement('div');
+      card.className = 'member-card';
+      card.innerHTML = `
+        <div class="member-info">
+          <div class="member-name">${m.name}</div>
+          <div class="member-team"><span class="badge ${teamClass}">${m.team}</span></div>
+        </div>
+        <span class="badge ${statusClass}">${statusText}</span>`;
+      container.appendChild(card);
+    });
+  }
+
+  // ── Check-in ──────────────────────────────────────────────────────────────
+  async function markPresent() {
+    const name = document.getElementById('memberSelect').value;
+    if (!name) { showAlert('Please select your name first.','error'); return; }
+    if (!db) { showAlert('Firebase not configured yet.','error'); return; }
+
+    const existing = TODAY_ATT.find(r => r.name === name);
+    if (existing && existing.status === 'Present') {
+      showAlert(`${name} already checked in today at ${existing.time}.`,'info'); return;
+    }
+
+    const btn = document.getElementById('checkinBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loader"></span> Saving...';
+
+    const member = MEMBERS.find(m => m.name === name);
+    const rec = {
+      date: todayStr(), name, team: member?.team || '', status: 'Present',
+      mode: SELECTED_MODE, time: nowTime(), timestamp: serverTimestamp()
+    };
+
+    try {
+      const docRef = doc(collection(db,'attendance'), `${todayStr()}_${name.replace(/\s+/g,'_')}`);
+      await setDoc(docRef, rec);
+      lastUser = name;
+      await loadTodayAttendance();
+      showAlert(`Checked in! ${name} — ${SELECTED_MODE} at ${rec.time}`, 'success');
+    } catch(e) {
+      showAlert('Error saving. Check Firebase config: '+e.message,'error');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '✓ Mark Me Present';
+  }
+
+  function updateCheckinStatus(name) {
+    const status = document.getElementById('checkinStatus');
+    if (!status || !name) return;
+    const rec = TODAY_ATT.find(r => r.name === name);
+    if (rec && rec.status === 'Present') {
+      status.className = 'checkin-status present';
+      status.textContent = `✓ You checked in today at ${rec.time} — ${rec.mode}`;
+      status.style.display = 'block';
+    } else {
+      status.style.display = 'none';
+    }
+  }
+
+  // ── Requests ──────────────────────────────────────────────────────────────
+  async function submitRequest(type) {
+    const name = document.getElementById('memberSelect').value || lastUser;
+    if (!name) { showAlert('Select your name first.','error'); return; }
+    if (!db) return;
+
+    if (type === 'leave') openLeaveModal(name);
+    else openOTModal(name);
+  }
+
+  async function saveLeaveRequest() {
+    const name   = document.getElementById('leaveNameHidden').value;
+    const ltype  = document.getElementById('leaveType').value;
+    const from   = document.getElementById('leaveFrom').value;
+    const to     = document.getElementById('leaveTo').value;
+    const reason = document.getElementById('leaveReason').value.trim();
+    if (!from || !to) { alert('Please select date range.'); return; }
+
+    const member = MEMBERS.find(m=>m.name===name);
+    await addDoc(collection(db,'requests'), {
+      name, team: member?.team||'', type:'Leave', subtype:ltype,
+      from, to, reason, status:'Pending',
+      submittedOn: todayStr(), timestamp: serverTimestamp()
+    });
+    closeModal('leaveModal');
+    showAlert(`Leave request submitted for ${name}.`,'success');
+    if (activeMemberTab === 'requests') loadMyRequests(name);
+  }
+
+  async function saveOTRequest() {
+    const name   = document.getElementById('otNameHidden').value;
+    const hours  = document.getElementById('otHours').value;
+    const date   = document.getElementById('otDate').value;
+    const reason = document.getElementById('otReason').value.trim();
+
+    const member = MEMBERS.find(m=>m.name===name);
+    await addDoc(collection(db,'requests'), {
+      name, team: member?.team||'', type:'Overtime', hours: parseInt(hours),
+      date, reason, status:'Pending',
+      submittedOn: todayStr(), timestamp: serverTimestamp()
+    });
+    closeModal('otModal');
+    showAlert(`OT request submitted for ${name}.`,'success');
+    if (activeMemberTab === 'requests') loadMyRequests(name);
+  }
+
+  // ── My Requests tab ───────────────────────────────────────────────────────
+  async function loadMyRequests(nameFilter) {
+    const container = document.getElementById('myRequestsList');
+    const filterSel = document.getElementById('myReqFilter');
+    if (!container) return;
+    const name = nameFilter || filterSel?.value || '';
+    container.innerHTML = '<div class="loading-screen"><div class="loader"></div><p>Loading...</p></div>';
+
+    if (!name) { container.innerHTML = '<div class="empty"><div class="icon">🔍</div><p>Select your name above to see your requests.</p></div>'; return; }
+    if (!db) { container.innerHTML = '<div class="empty"><p>Firebase not configured.</p></div>'; return; }
+
+    const q = query(collection(db,'requests'), where('name','==',name), orderBy('timestamp','desc'));
+    const snap = await getDocs(q);
+    const reqs = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    if (!reqs.length) { container.innerHTML = '<div class="empty"><div class="icon">📭</div><p>No requests yet.</p></div>'; return; }
+    container.innerHTML = reqs.map(r => `
+      <div class="req-item">
+        <div class="req-header">
+          <div>
+            <div class="req-title">${r.type === 'Leave' ? '🏖️ Leave' : '⏰ Overtime'} — ${r.type==='Leave'?r.subtype:r.hours+' hrs'}</div>
+            <div class="req-meta">${r.type==='Leave'? fmtDate(r.from)+' → '+fmtDate(r.to) : fmtDate(r.date)} · Submitted ${fmtDate(r.submittedOn)}</div>
+          </div>
+          <span class="badge ${r.status==='Approved'?'badge-present':r.status==='Rejected'?'badge-absent':'badge-pending'}">${r.status}</span>
+        </div>
+        ${r.reason ? `<div style="font-size:12px;color:var(--text3)">Reason: ${r.reason}</div>` : ''}
+      </div>`).join('');
+  }
+
+  // ── Admin ─────────────────────────────────────────────────────────────────
+  async function adminLogin() {
+    const pwd = document.getElementById('adminPwd').value;
+    if (!db) { alert('Firebase not configured.'); return; }
+
+    const snap = await getDoc(doc(db,'config','settings'));
+    const stored = snap.exists() ? snap.data().admin_password : 'admin123';
+    if (pwd === stored) {
+      ADMIN_LOGGED_IN = true;
+      document.getElementById('adminLogin').style.display = 'none';
+      document.getElementById('adminDash').style.display  = 'block';
+      loadAdminAttendance();
+    } else {
+      document.getElementById('adminPwdErr').style.display = 'block';
+      document.getElementById('adminPwdErr').textContent = 'Incorrect password.';
+    }
+  }
+
+  async function loadAdminAttendance() {
+    const tbody = document.getElementById('adminAttBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px"><div class="loader"></div></td></tr>';
+
+    const q = query(collection(db,'attendance'), where('date','==',todayStr()));
+    const snap = await getDocs(q);
+    const att = snap.docs.map(d=>d.data());
+
+    // Auto-mark absent for members with no record past cutoff
+    const hour = new Date().getHours();
+    const rows = MEMBERS.map(m => {
+      const rec = att.find(r=>r.name===m.name);
+      if (rec) return rec;
+      const status = hour >= CUTOFF ? 'Absent' : 'Pending';
+      return {name:m.name, team:m.team, status, mode:'—', time:'—', date:todayStr(), absenceCount:0};
+    });
+
+    // Get absence counts
+    const absCounts = {};
+    const allAtt = await getDocs(query(collection(db,'attendance'), where('status','==','Absent')));
+    allAtt.docs.forEach(d => {
+      const nm = d.data().name;
+      absCounts[nm] = (absCounts[nm]||0)+1;
+    });
+
+    tbody.innerHTML = rows.map(r => {
+      const sc = r.status==='Present'?'badge-present':r.status==='Absent'?'badge-absent':r.status==='On Leave'?'badge-leave':'badge-pending';
+      const tc = r.team==='VQC'?'badge-vqc':'badge-enrich';
+      return `<tr>
+        <td><strong>${r.name}</strong></td>
+        <td><span class="badge ${tc}">${r.team}</span></td>
+        <td><span class="badge ${sc}">${r.status}</span></td>
+        <td>${r.mode}</td>
+        <td>${r.time}</td>
+        <td><span style="color:var(--danger);font-weight:700">${absCounts[r.name]||0}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function loadAdminRequests() {
+    const container = document.getElementById('adminReqList');
+    container.innerHTML = '<div class="loading-screen"><div class="loader"></div><p>Loading...</p></div>';
+
+    const q = query(collection(db,'requests'), orderBy('timestamp','desc'));
+    const snap = await getDocs(q);
+    ALL_REQUESTS = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    if (!ALL_REQUESTS.length) {
+      container.innerHTML = '<div class="empty"><div class="icon">📭</div><p>No requests yet.</p></div>'; return;
+    }
+
+    const pending = ALL_REQUESTS.filter(r=>r.status==='Pending');
+    const others  = ALL_REQUESTS.filter(r=>r.status!=='Pending');
+    const renderGroup = (title, items) => {
+      if (!items.length) return '';
+      return `<div style="margin-bottom:20px">
+        <div class="section-heading">${title} <span class="section-sub">${items.length} records</span></div>
+        ${items.map(r=>`
+        <div class="req-item">
+          <div class="req-header">
+            <div>
+              <div class="req-title">${r.name} <span class="badge ${r.team==='VQC'?'badge-vqc':'badge-enrich'}">${r.team}</span></div>
+              <div class="req-meta">${r.type==='Leave'?'🏖️ '+r.subtype+' · '+fmtDate(r.from)+' → '+fmtDate(r.to):'⏰ OT '+r.hours+'h · '+fmtDate(r.date)} · Submitted ${fmtDate(r.submittedOn)}</div>
+              ${r.reason?`<div style="font-size:12px;color:var(--text3);margin-top:4px">Reason: ${r.reason}</div>`:''}
+            </div>
+            <span class="badge ${r.status==='Approved'?'badge-present':r.status==='Rejected'?'badge-absent':'badge-pending'}">${r.status}</span>
+          </div>
+          ${r.status==='Pending'?`<div class="req-actions">
+            <button class="btn btn-success btn-sm" onclick="approveReq('${r.id}')">✓ Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="rejectReq('${r.id}')">✗ Reject</button>
+          </div>`:''}
+        </div>`).join('')}
+      </div>`;
+    };
+    container.innerHTML = renderGroup('⏳ Pending', pending) + renderGroup('✅ Processed', others);
+  }
+
+  window.approveReq = async (id) => {
+    await updateDoc(doc(db,'requests',id), {status:'Approved', processedOn:todayStr()});
+    loadAdminRequests();
+  };
+  window.rejectReq = async (id) => {
+    await updateDoc(doc(db,'requests',id), {status:'Rejected', processedOn:todayStr()});
+    loadAdminRequests();
+  };
+
+  // ── Monthly Report ────────────────────────────────────────────────────────
+  async function loadMonthlyReport() {
+    const monthSel = document.getElementById('reportMonth');
+    const teamSel  = document.getElementById('reportTeam');
+    const month = parseInt(monthSel.value);
+    const team  = teamSel.value;
+    const year  = new Date().getFullYear();
+
+    // Period: 15th of prev month to 15th of this month
+    const fromMonth = month === 1 ? 12 : month - 1;
+    const fromYear  = month === 1 ? year - 1 : year;
+    const from = `${fromYear}-${String(fromMonth).padStart(2,'0')}-15`;
+    const to   = `${year}-${String(month).padStart(2,'0')}-15`;
+
+    document.getElementById('reportPeriodLabel').textContent = `Period: ${fmtDate(from)} → ${fmtDate(to)}`;
+
+    const members = team === 'All' ? MEMBERS : MEMBERS.filter(m=>m.team===team);
+
+    // Fetch attendance in range
+    const attSnap = await getDocs(query(collection(db,'attendance'), where('date','>=',from), where('date','<=',to)));
+    const attData = attSnap.docs.map(d=>d.data());
+
+    // Fetch approved requests in range
+    const reqSnap = await getDocs(query(collection(db,'requests'), where('status','==','Approved')));
+    const reqData = reqSnap.docs.map(d=>d.data());
+
+    let totalLeave=0, totalOT=0, totalAbsence=0;
+    const rows = members.map(m => {
+      const mAtt   = attData.filter(r=>r.name===m.name);
+      const absences = mAtt.filter(r=>r.status==='Absent').length;
+      const presents = mAtt.filter(r=>r.status==='Present').length;
+      const mReqs  = reqData.filter(r=>r.name===m.name);
+      const leaves = mReqs.filter(r=>r.type==='Leave' && r.from>=from && r.to<=to);
+      const otHours = mReqs.filter(r=>r.type==='Overtime' && r.date>=from && r.date<=to)
+                           .reduce((s,r)=>s+(r.hours||0),0);
+      const leaveDays = leaves.reduce((s,r)=>{
+        const d1=new Date(r.from),d2=new Date(r.to);
+        return s+Math.round((d2-d1)/(86400000))+1;
+      },0);
+      const workDays = mAtt.length || 1;
+      const attPct   = Math.round((presents/workDays)*100);
+      totalLeave  += leaveDays;
+      totalOT     += otHours;
+      totalAbsence+= absences;
+      return {name:m.name, team:m.team, leaveDays, otHours, absences, attPct, presents};
+    });
+
+    document.getElementById('rstatMembers').textContent = members.length;
+    document.getElementById('rstatLeave').textContent   = totalLeave;
+    document.getElementById('rstatOT').textContent      = totalOT+'h';
+    document.getElementById('rstatAbsence').textContent = totalAbsence;
+
+    const tbody = document.getElementById('reportBody');
+    tbody.innerHTML = rows.map(r=>`<tr>
+      <td><strong>${r.name}</strong></td>
+      <td><span class="badge ${r.team==='VQC'?'badge-vqc':'badge-enrich'}">${r.team}</span></td>
+      <td>${r.presents}</td>
+      <td style="color:var(--danger)">${r.absences}</td>
+      <td>${r.leaveDays}</td>
+      <td>${r.otHours}h</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${r.attPct}%;background:${r.attPct>=80?'var(--success)':r.attPct>=60?'var(--warning)':'var(--danger)'}"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:var(--text2)">${r.attPct}%</span>
+        </div>
+      </td>
+    </tr>`).join('');
+
+    // CSV export data
+    window._reportRows = rows; window._reportPeriod = `${from}_to_${to}`;
+  }
+
+  window.exportCSV = () => {
+    if (!window._reportRows) return;
+    const hdr = 'Name,Team,Present Days,Absences,Leave Days,OT Hours,Attendance %\n';
+    const body = window._reportRows.map(r=>`${r.name},${r.team},${r.presents},${r.absences},${r.leaveDays},${r.otHours},${r.attPct}%`).join('\n');
+    const blob = new Blob([hdr+body],{type:'text/csv'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`attendance_report_${window._reportPeriod||'export'}.csv`; a.click();
+  };
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+  function showAlert(msg, type='success') {
+    const el = document.getElementById('mainAlert');
+    el.textContent = msg; el.className = `alert alert-${type}`;
+    el.style.display='block';
+    setTimeout(()=>el.style.display='none',4000);
+  }
+
+  window.switchMemberTab = (tab) => {
+    activeMemberTab = tab;
+    document.querySelectorAll('.member-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+    document.querySelectorAll('.member-tab-content').forEach(c=>c.classList.toggle('active',c.dataset.tab===tab));
+    if (tab==='requests') {
+      const filterSel = document.getElementById('myReqFilter');
+      if (lastUser && filterSel) filterSel.value = lastUser;
+      loadMyRequests(lastUser);
+    }
+  };
+
+  window.switchAdminTab = (tab) => {
+    activeAdminTab = tab;
+    document.querySelectorAll('.admin-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+    document.querySelectorAll('.admin-tab-content').forEach(c=>c.classList.toggle('active',c.dataset.tab===tab));
+    if (tab==='requests') loadAdminRequests();
+    if (tab==='report') loadMonthlyReport();
+  };
+
+  function openLeaveModal(name) {
+    document.getElementById('leaveNameHidden').value = name;
+    document.getElementById('leaveModalTitle').textContent = `Leave Request — ${name}`;
+    const today = todayStr();
+    document.getElementById('leaveFrom').value = today;
+    document.getElementById('leaveTo').value   = today;
+    document.getElementById('leaveModal').classList.add('open');
+  }
+  function openOTModal(name) {
+    document.getElementById('otNameHidden').value = name;
+    document.getElementById('otModalTitle').textContent = `Overtime Request — ${name}`;
+    document.getElementById('otDate').value = todayStr();
+    document.getElementById('otModal').classList.add('open');
+  }
+  window.closeModal = (id) => document.getElementById(id).classList.remove('open');
+
+  // Mode buttons
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      SELECTED_MODE = btn.dataset.mode;
+    });
+  });
+
+  // Member select change
+  document.getElementById('memberSelect')?.addEventListener('change', e => {
+    lastUser = e.target.value;
+    // sync my-req filter
+    const filterSel = document.getElementById('myReqFilter');
+    if (filterSel && lastUser) filterSel.value = lastUser;
+    updateCheckinStatus(lastUser);
+  });
+
+  // Expose to HTML
+  window.markPresent      = markPresent;
+  window.submitRequest    = submitRequest;
+  window.saveLeaveRequest = saveLeaveRequest;
+  window.saveOTRequest    = saveOTRequest;
+  window.adminLogin       = adminLogin;
+  window.loadMonthlyReport= loadMonthlyReport;
+
+  // Theme
+  const saved = localStorage.getItem('theme')||'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeIcon').textContent = saved==='dark'?'☀️':'🌙';
+  window.toggleTheme = () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const nxt = cur==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',nxt);
+    localStorage.setItem('theme',nxt);
+    document.getElementById('themeIcon').textContent = nxt==='dark'?'☀️':'🌙';
+  };
+
+  // Date display
+  document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // View toggle
+  window.showView = (view) => {
+    document.querySelectorAll('.view-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+    document.getElementById('memberView').style.display = view==='member'?'block':'none';
+    document.getElementById('adminLoginView').style.display = view==='admin'?'block':'none';
+    document.getElementById('adminDash').style.display = 'none';
+    ADMIN_LOGGED_IN = false;
+  };
+
+  // My req filter
+  document.getElementById('myReqFilter')?.addEventListener('change', e => {
+    lastUser = e.target.value;
+    loadMyRequests(e.target.value);
+  });
+
+  // Config banner
+  if (!IS_CONFIGURED) {
+    document.getElementById('configBanner').style.display = 'block';
+  }
+
+  // Init
+  async function init() {
+    if (!IS_CONFIGURED) {
+      // Render UI with empty state
+      renderMemberDropdown();
+      renderStats();
+      renderTeamList();
+      return;
+    }
+    document.getElementById('mainLoader').style.display='flex';
+    await seedMembers();
+    await Promise.all([loadMembers(), loadTodayAttendance()]);
+    document.getElementById('mainLoader').style.display='none';
+    document.getElementById('appContent').style.display='block';
+  }
+  init();
+
+  // My req filter populate
+  setTimeout(()=>{
+    const filterSel = document.getElementById('myReqFilter');
+    if (filterSel && MEMBERS.length) {
+      filterSel.innerHTML = '<option value="">-- Select name --</option>' +
+        MEMBERS.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
+    }
+  }, 2000);
+</script>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">📋</div>
+    <div>
+      <div class="app-title">Team Attendance</div>
+      <div class="app-sub">VQC &amp; Enrichment</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="date-badge" id="dateDisplay"></span>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="member" onclick="showView('member')">👤 Member</button>
+      <button class="view-btn" data-view="admin" onclick="showView('admin')">🔐 Admin</button>
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()"><span id="themeIcon">🌙</span></button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Config Banner -->
+  <div id="configBanner" class="config-banner">
+    <h3>⚠️ Firebase Not Configured</h3>
+    <p>Open <code>index.html</code>, find the <code>firebaseConfig</code> block, and replace the placeholder values with your Firebase project credentials. See the <code>FIREBASE_SETUP.md</code> guide for step-by-step instructions.</p>
+  </div>
+
+  <div id="mainAlert" class="alert"></div>
+
+  <!-- Loading screen -->
+  <div id="mainLoader" class="loading-screen" style="display:none">
+    <div class="loader"></div>
+    <p>Loading team data...</p>
+  </div>
+
+  <!-- App content -->
+  <div id="appContent" style="display:none">
+
+    <!-- ═══ MEMBER VIEW ═══ -->
+    <div id="memberView">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-pill present"><div class="val" id="statPresent">0</div><div class="lbl">Present</div></div>
+        <div class="stat-pill absent"><div class="val" id="statAbsent">0</div><div class="lbl">Absent</div></div>
+        <div class="stat-pill pending"><div class="val" id="statPending">0</div><div class="lbl">Pending</div></div>
+        <div class="stat-pill wfh"><div class="val" id="statWFH">0</div><div class="lbl">WFH</div></div>
+      </div>
+
+      <!-- Check-in card -->
+      <div class="card checkin-card">
+        <div class="card-title">📍 Mark Attendance</div>
+        <div id="checkinStatus" class="checkin-status"></div>
+        <div class="form-row" style="margin-bottom:14px">
+          <div class="form-group" style="flex:2">
+            <label>Your Name</label>
+            <select id="memberSelect"><option value="">-- Select your name --</option></select>
+          </div>
+          <div class="form-group" style="flex:1.5">
+            <label>Work Mode</label>
+            <div class="mode-btns">
+              <button class="mode-btn" data-mode="WFO">🏢 WFO</button>
+              <button class="mode-btn active" data-mode="WFH">🏠 WFH</button>
+            </div>
+          </div>
+          <div class="form-group" style="flex:1;min-width:120px">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" id="checkinBtn" onclick="markPresent()">✓ Mark Me Present</button>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <button class="quick-btn" onclick="submitRequest('leave')">🏖️ Request Leave</button>
+          <button class="quick-btn" onclick="submitRequest('ot')">⏰ Request Overtime</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="card">
+        <div class="tabs">
+          <button class="tab member-tab active" data-tab="team" onclick="switchMemberTab('team')">👥 Team Status</button>
+          <button class="tab member-tab" data-tab="requests" onclick="switchMemberTab('requests')">📋 My Requests</button>
+        </div>
+
+        <div class="tab-content member-tab-content active" data-tab="team">
+          <div id="teamList" class="team-grid"></div>
+        </div>
+
+        <div class="tab-content member-tab-content" data-tab="requests">
+          <div style="margin-bottom:16px">
+            <select id="myReqFilter" style="width:100%;max-width:300px">
+              <option value="">-- Select name --</option>
+            </select>
+          </div>
+          <div id="myRequestsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ADMIN VIEW (Login) ═══ -->
+    <div id="adminLoginView" style="display:none">
+      <div class="login-wrap">
+        <div class="card">
+          <h2>Admin Login</h2>
+          <p>Enter admin password to access the dashboard.</p>
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Password</label>
+            <input type="password" id="adminPwd" placeholder="Enter password" onkeydown="if(event.key==='Enter')adminLogin()">
+          </div>
+          <div id="adminPwdErr" class="alert alert-error"></div>
+          <button class="btn btn-primary" style="width:100%" onclick="adminLogin()">🔐 Login</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /appContent -->
+
+  <!-- ═══ ADMIN DASHBOARD (outside appContent so always renders) ═══ -->
+  <div id="adminDash" style="display:none">
+
+    <div class="tabs" style="margin-bottom:20px">
+      <button class="tab admin-tab active" data-tab="attendance" onclick="switchAdminTab('attendance')">📅 Today's Attendance</button>
+      <button class="tab admin-tab" data-tab="requests" onclick="switchAdminTab('requests')">📋 Requests</button>
+      <button class="tab admin-tab" data-tab="report" onclick="switchAdminTab('report')">📊 Monthly Report</button>
+    </div>
+
+    <!-- Attendance Tab -->
+    <div class="tab-content admin-tab-content active" data-tab="attendance">
+      <div class="card">
+        <div class="section-heading">
+          Today's Attendance
+          <button class="btn btn-outline btn-sm" onclick="loadAdminAttendance()">🔄 Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Team</th><th>Status</th><th>Mode</th><th>Check-in Time</th><th>Total Absences</th></tr></thead>
+            <tbody id="adminAttBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Requests Tab -->
+    <div class="tab-content admin-tab-content" data-tab="requests" style="display:none">
+      <div class="card">
+        <div class="section-heading">Leave &amp; OT Requests</div>
+        <div id="adminReqList"></div>
+      </div>
+    </div>
+
+    <!-- Monthly Report Tab -->
+    <div class="tab-content admin-tab-content" data-tab="report" style="display:none">
+      <div class="card">
+        <div class="section-heading">
+          Monthly Report
+          <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+        </div>
+        <div class="report-controls">
+          <div class="form-group">
+            <label>Month</label>
+            <select id="reportMonth" onchange="loadMonthlyReport()">
+              <option value="1">January</option><option value="2">February</option>
+              <option value="3">March</option><option value="4">April</option>
+              <option value="5">May</option><option value="6">June</option>
+              <option value="7" selected>July</option><option value="8">August</option>
+              <option value="9">September</option><option value="10">October</option>
+              <option value="11">November</option><option value="12">December</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Team</label>
+            <select id="reportTeam" onchange="loadMonthlyReport()">
+              <option value="All">All Teams</option>
+              <option value="VQC">VQC</option>
+              <option value="Enrichment">Enrichment</option>
+            </select>
+          </div>
+          <div style="padding-bottom:2px;font-size:12px;color:var(--text3)" id="reportPeriodLabel"></div>
+        </div>
+        <div class="report-stats">
+          <div class="rstat"><div class="rv" id="rstatMembers">0</div><div class="rl">Members</div></div>
+          <div class="rstat"><div class="rv" id="rstatLeave">0</div><div class="rl">Leave Days</div></div>
+          <div class="rstat"><div class="rv" id="rstatOT">0h</div><div class="rl">OT Hours</div></div>
+          <div class="rstat"><div class="rv" id="rstatAbsence">0</div><div class="rl">Total Absences</div></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Team</th><th>Present Days</th><th>Absences</th><th>Leave Days</th><th>OT Hours</th><th>Attendance %</th></tr></thead>
+            <tbody id="reportBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /adminDash -->
+
+</div><!-- /main -->
+
+<!-- Leave Modal -->
+<div class="modal-overlay" id="leaveModal">
+  <div class="modal">
+    <h3 id="leaveModalTitle">Leave Request</h3>
+    <input type="hidden" id="leaveNameHidden">
+    <div class="form-group">
+      <label>Leave Type</label>
+      <select id="leaveType">
+        <option value="Sick">🤒 Sick Leave</option>
+        <option value="Casual">😌 Casual Leave</option>
+        <option value="Planned">📅 Planned Leave</option>
+        <option value="Emergency">🚨 Emergency Leave</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="form-group" style="flex:1"><label>From Date</label><input type="date" id="leaveFrom"></div>
+      <div class="form-group" style="flex:1"><label>To Date</label><input type="date" id="leaveTo"></div>
+    </div>
+    <div class="form-group">
+      <label>Reason (optional)</label>
+      <input type="text" id="leaveReason" placeholder="Brief reason...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('leaveModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLeaveRequest()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- OT Modal -->
+<div class="modal-overlay" id="otModal">
+  <div class="modal">
+    <h3 id="otModalTitle">Overtime Request</h3>
+    <input type="hidden" id="otNameHidden">
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" id="otDate">
+    </div>
+    <div class="form-group">
+      <label>Hours</label>
+      <select id="otHours">
+        <option value="1">1 hour</option><option value="2">2 hours</option><option value="3">3 hours</option>
+        <option value="4">4 hours</option><option value="5">5 hours</option><option value="6">6 hours</option>
+        <option value="7">7 hours</option><option value="8">8 hours</option><option value="9">9 hours</option>
+        <option value="10">10 hours</option><option value="11">11 hours</option><option value="12">12 hours</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Reason (optional)</label>
+      <input type="text" id="otReason" placeholder="Brief reason...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('otModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOTRequest()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
