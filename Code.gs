@@ -1,36 +1,18 @@
 // ─── ATTENDANCE TRACKER — Apps Script Backend ───────────────────────────────
-// Deploy as: Execute as ME, Access: Anyone (even anonymous)
-// Sheet tabs required: Members | Attendance | Requests | Config
+// Deploy as: Execute as ME, Access: Anyone within instamart.in
+// This file also SERVES the HTML via doGet()
 
-var SS   = SpreadsheetApp.getActiveSpreadsheet();
-var MEMBERS_SH   = function() { return SS.getSheetByName('Members');    };
-var ATTENDANCE_SH= function() { return SS.getSheetByName('Attendance'); };
-var REQUESTS_SH  = function() { return SS.getSheetByName('Requests');   };
-var CONFIG_SH    = function() { return SS.getSheetByName('Config');      };
+var SS = SpreadsheetApp.getActiveSpreadsheet();
+function MEMBERS_SH()    { return SS.getSheetByName('Members');    }
+function ATTENDANCE_SH() { return SS.getSheetByName('Attendance'); }
+function REQUESTS_SH()   { return SS.getSheetByName('Requests');   }
+function CONFIG_SH()     { return SS.getSheetByName('Config');     }
 
-// ── Router ───────────────────────────────────────────────────────────────────
+// ── Serve HTML ────────────────────────────────────────────────────────────────
 function doGet(e) {
-  var action = (e.parameter && e.parameter.action) ? e.parameter.action : '';
-  var result;
-  try {
-    switch (action) {
-      case 'getInitData':       result = getInitData_();                                    break;
-      case 'markAttendance':    result = markAttendance_(e.parameter);                      break;
-      case 'submitRequest':     result = submitRequest_(e.parameter);                       break;
-      case 'getMyRequests':     result = getMyRequests_(e.parameter.name);                  break;
-      case 'getAllRequests':     result = getAllRequests_();                                  break;
-      case 'updateRequest':     result = updateRequest_(e.parameter.id, e.parameter.status);break;
-      case 'getMonthlyReport':  result = getMonthlyReport_(e.parameter);                    break;
-      case 'verifyAdmin':       result = verifyAdmin_(e.parameter.password);                break;
-      case 'getAbsenceCounts':  result = getAbsenceCounts_();                               break;
-      default:                  result = { error: 'Unknown action: ' + action };
-    }
-  } catch (err) {
-    result = { error: err.toString() };
-  }
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  return HtmlService.createHtmlOutputFromFile('dashboard')
+    .setTitle('Team Attendance Tracker')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -55,7 +37,7 @@ function sheetRows_(sheet) {
 }
 
 // ── getInitData ───────────────────────────────────────────────────────────────
-function getInitData_() {
+function getInitData() {
   var members = sheetRows_(MEMBERS_SH()).map(function(r) {
     return { name: String(r['Name'] || ''), team: String(r['Team'] || '') };
   }).filter(function(m) { return m.name; });
@@ -67,7 +49,6 @@ function getInitData_() {
       return { name: r['Name'], team: r['Team'], status: r['Status'], mode: r['Mode'], time: r['Time'] };
     });
 
-  // Count all-time absences per member
   var absCounts = {};
   allAtt.forEach(function(r) {
     if (r['Status'] === 'Absent') {
@@ -79,11 +60,8 @@ function getInitData_() {
 }
 
 // ── markAttendance ────────────────────────────────────────────────────────────
-function markAttendance_(p) {
-  var name = p.name || '';
-  var mode = p.mode || 'WFO';
+function markAttendance(name, mode) {
   var today = todayStr_();
-
   if (!name) return { error: 'Name is required.' };
 
   var sh = ATTENDANCE_SH();
@@ -95,14 +73,13 @@ function markAttendance_(p) {
 
   var mRows = sheetRows_(MEMBERS_SH());
   var member = mRows.filter(function(r) { return r['Name'] === name; })[0] || {};
-
-  sh.appendRow([today, name, member['Team'] || '', 'Present', mode, nowTime_()]);
+  sh.appendRow([today, name, member['Team'] || '', 'Present', mode || 'WFO', nowTime_()]);
   return { success: true, time: nowTime_(), mode: mode };
 }
 
 // ── submitRequest ─────────────────────────────────────────────────────────────
-function submitRequest_(p) {
-  var name = p.name || '';
+function submitRequest(params) {
+  var name = params.name || '';
   if (!name) return { error: 'Name required.' };
 
   var mRows = sheetRows_(MEMBERS_SH());
@@ -111,13 +88,13 @@ function submitRequest_(p) {
 
   REQUESTS_SH().appendRow([
     id, name, member['Team'] || '',
-    p.type || '',         // Leave | Overtime
-    p.subtype || '',      // Sick / Casual / Planned / Emergency  OR  hours for OT
-    p.from_ || '',        // from date
-    p.to_ || '',          // to date (leave)
-    p.date_ || '',        // single date (OT)
-    p.hours || '',        // OT hours
-    p.reason || '',
+    params.type || '',
+    params.subtype || '',
+    params.from_ || '',
+    params.to_ || '',
+    params.date_ || '',
+    params.hours || '',
+    params.reason || '',
     'Pending',
     todayStr_()
   ]);
@@ -125,7 +102,7 @@ function submitRequest_(p) {
 }
 
 // ── getMyRequests ─────────────────────────────────────────────────────────────
-function getMyRequests_(name) {
+function getMyRequests(name) {
   if (!name) return { requests: [] };
   var rows = sheetRows_(REQUESTS_SH()).filter(function(r) { return r['Name'] === name; });
   return {
@@ -141,7 +118,7 @@ function getMyRequests_(name) {
 }
 
 // ── getAllRequests ─────────────────────────────────────────────────────────────
-function getAllRequests_() {
+function getAllRequests() {
   var rows = sheetRows_(REQUESTS_SH());
   return {
     requests: rows.map(function(r) {
@@ -156,7 +133,7 @@ function getAllRequests_() {
 }
 
 // ── updateRequest ─────────────────────────────────────────────────────────────
-function updateRequest_(id, status) {
+function updateRequest(id, status) {
   if (!id || !status) return { error: 'id and status required.' };
   var sh = REQUESTS_SH();
   var data = sh.getDataRange().getValues();
@@ -164,7 +141,7 @@ function updateRequest_(id, status) {
   var idCol = headers.indexOf('ID');
   var statusCol = headers.indexOf('Status');
   for (var i = 1; i < data.length; i++) {
-    if (data[i][idCol] === id) {
+    if (String(data[i][idCol]) === String(id)) {
       sh.getRange(i + 1, statusCol + 1).setValue(status);
       return { success: true };
     }
@@ -173,31 +150,19 @@ function updateRequest_(id, status) {
 }
 
 // ── verifyAdmin ───────────────────────────────────────────────────────────────
-function verifyAdmin_(password) {
+function verifyAdmin(password) {
   var rows = sheetRows_(CONFIG_SH());
   var row = rows.filter(function(r) { return r['Key'] === 'admin_password'; })[0];
   var stored = row ? String(row['Value']) : 'admin123';
   return { valid: password === stored };
 }
 
-// ── getAbsenceCounts ──────────────────────────────────────────────────────────
-function getAbsenceCounts_() {
-  var counts = {};
-  sheetRows_(ATTENDANCE_SH()).forEach(function(r) {
-    if (r['Status'] === 'Absent') {
-      counts[r['Name']] = (counts[r['Name']] || 0) + 1;
-    }
-  });
-  return { counts: counts };
-}
-
 // ── getMonthlyReport ──────────────────────────────────────────────────────────
-function getMonthlyReport_(p) {
-  var month = parseInt(p.month) || new Date().getMonth() + 1;
-  var year  = parseInt(p.year)  || new Date().getFullYear();
-  var team  = p.team || 'All';
+function getMonthlyReport(month, year, team) {
+  month = parseInt(month) || (new Date().getMonth() + 1);
+  year  = parseInt(year)  || new Date().getFullYear();
+  team  = team || 'All';
 
-  // Period: 15th of prev month → 15th of this month
   var fromMonth = month === 1 ? 12 : month - 1;
   var fromYear  = month === 1 ? year - 1 : year;
   var from = fromYear + '-' + pad_(fromMonth) + '-15';
@@ -211,21 +176,19 @@ function getMonthlyReport_(p) {
   var allReqs = sheetRows_(REQUESTS_SH()).filter(function(r) { return r['Status'] === 'Approved'; });
 
   var rows = members.map(function(m) {
-    var mAtt  = allAtt.filter(function(r) { return r['Name']===m.name && r['Date']>=from && r['Date']<=to; });
+    var mAtt     = allAtt.filter(function(r) { return r['Name']===m.name && r['Date']>=from && r['Date']<=to; });
     var presents = mAtt.filter(function(r) { return r['Status']==='Present'; }).length;
     var absences = mAtt.filter(function(r) { return r['Status']==='Absent';  }).length;
+    var mReqs    = allReqs.filter(function(r) { return r['Name']===m.name; });
 
-    var mReqs = allReqs.filter(function(r) { return r['Name']===m.name; });
-    var leaves = mReqs.filter(function(r) {
-      return r['Type']==='Leave' && r['From']>=from && r['To']<=to;
-    });
-    var leaveDays = leaves.reduce(function(s, r) {
-      var d1=new Date(r['From']), d2=new Date(r['To']);
-      return s + Math.round((d2-d1)/86400000) + 1;
-    }, 0);
-    var otHours = mReqs.filter(function(r) {
-      return r['Type']==='Overtime' && r['Date']>=from && r['Date']<=to;
-    }).reduce(function(s, r) { return s + (parseInt(r['Hours'])||0); }, 0);
+    var leaveDays = mReqs.filter(function(r) { return r['Type']==='Leave' && r['From']>=from && r['To']<=to; })
+      .reduce(function(s, r) {
+        var d1=new Date(r['From']), d2=new Date(r['To']);
+        return s + Math.round((d2-d1)/86400000) + 1;
+      }, 0);
+
+    var otHours = mReqs.filter(function(r) { return r['Type']==='Overtime' && r['Date']>=from && r['Date']<=to; })
+      .reduce(function(s, r) { return s + (parseInt(r['Hours'])||0); }, 0);
 
     var workDays = mAtt.length || 1;
     var attPct   = Math.round((presents / workDays) * 100);
@@ -238,22 +201,19 @@ function getMonthlyReport_(p) {
 
 function pad_(n) { return n < 10 ? '0'+n : ''+n; }
 
-// ── Sheet Setup Helper (run once manually) ────────────────────────────────────
+// ── Sheet Setup Helper — run once manually ────────────────────────────────────
 function setupSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-
   function ensureSheet(name, headers) {
     var sh = ss.getSheetByName(name);
     if (!sh) sh = ss.insertSheet(name);
     if (sh.getLastRow() === 0) sh.appendRow(headers);
     return sh;
   }
-
   ensureSheet('Members',    ['Name', 'Team']);
   ensureSheet('Attendance', ['Date', 'Name', 'Team', 'Status', 'Mode', 'Time']);
   ensureSheet('Requests',   ['ID', 'Name', 'Team', 'Type', 'Subtype', 'From', 'To', 'Date', 'Hours', 'Reason', 'Status', 'SubmittedOn']);
   var cfg = ensureSheet('Config', ['Key', 'Value']);
   if (cfg.getLastRow() < 2) cfg.appendRow(['admin_password', 'admin123']);
-
-  SpreadsheetApp.getUi().alert('Sheets setup complete!');
+  SpreadsheetApp.getUi().alert('Sheets setup complete! Default admin password: admin123');
 }
