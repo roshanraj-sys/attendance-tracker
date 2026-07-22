@@ -29,9 +29,19 @@ function sheetRows_(sheet) {
   var data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   var headers = data[0];
+  var tz = Session.getScriptTimeZone();
   return data.slice(1).map(function(row) {
     var obj = {};
-    headers.forEach(function(h, i) { obj[h] = row[i]; });
+    headers.forEach(function(h, i) {
+      var v = row[i];
+      // Convert Date objects → 'yyyy-MM-dd' string so google.script.run can serialize them
+      if (v instanceof Date) {
+        v = Utilities.formatDate(v, tz, 'yyyy-MM-dd');
+      }
+      // Convert empty to empty string (not null/undefined which can't serialize cleanly)
+      if (v === null || v === undefined) v = '';
+      obj[String(h)] = v;
+    });
     return obj;
   });
 }
@@ -176,18 +186,18 @@ function getMonthlyReport(month, year, team) {
   var allReqs = sheetRows_(REQUESTS_SH()).filter(function(r) { return r['Status'] === 'Approved'; });
 
   var rows = members.map(function(m) {
-    var mAtt     = allAtt.filter(function(r) { return r['Name']===m.name && r['Date']>=from && r['Date']<=to; });
+    var mAtt     = allAtt.filter(function(r) { return String(r['Name'])===m.name && String(r['Date'])>=from && String(r['Date'])<=to; });
     var presents = mAtt.filter(function(r) { return r['Status']==='Present'; }).length;
     var absences = mAtt.filter(function(r) { return r['Status']==='Absent';  }).length;
-    var mReqs    = allReqs.filter(function(r) { return r['Name']===m.name; });
+    var mReqs    = allReqs.filter(function(r) { return String(r['Name'])===m.name; });
 
-    var leaveDays = mReqs.filter(function(r) { return r['Type']==='Leave' && r['From']>=from && r['To']<=to; })
+    var leaveDays = mReqs.filter(function(r) { return r['Type']==='Leave' && String(r['From'])>=from && String(r['To'])<=to; })
       .reduce(function(s, r) {
         var d1=new Date(r['From']), d2=new Date(r['To']);
         return s + Math.round((d2-d1)/86400000) + 1;
       }, 0);
 
-    var otHours = mReqs.filter(function(r) { return r['Type']==='Overtime' && r['Date']>=from && r['Date']<=to; })
+    var otHours = mReqs.filter(function(r) { return r['Type']==='Overtime' && String(r['Date'])>=from && String(r['Date'])<=to; })
       .reduce(function(s, r) { return s + (parseInt(r['Hours'])||0); }, 0);
 
     var workDays = mAtt.length || 1;
